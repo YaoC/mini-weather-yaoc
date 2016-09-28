@@ -12,10 +12,13 @@ import android.widget.Toast;
 
 
 import org.xml.sax.helpers.DefaultHandler;
+import org.xmlpull.v1.XmlPullParser;
+import org.xmlpull.v1.XmlPullParserFactory;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.StringReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
@@ -97,11 +100,86 @@ public class MainActivity extends Activity implements View.OnClickListener{
                         }
                         String responseStr = response.toString();
                         Log.d("myWeather",responseStr);
+                        parseXml(responseStr);
                     }
                 }catch (Exception e){
                     e.printStackTrace();
                 }
             }
         }).start();
+    }
+
+    /*
+     *解析XML
+     */
+    private void parseXml(String xmldata){
+        try {
+            int fengxiangCount = 0;
+            int fengliCount = 0;
+            int dateCount = 0;
+            int highCount = 0;
+            int lowCount = 0;
+            int typeCount = 0;
+
+            XmlPullParserFactory fac = XmlPullParserFactory.newInstance();
+            XmlPullParser xmlPullParser = fac.newPullParser();
+            xmlPullParser.setInput(new StringReader(xmldata));
+            int evetType = xmlPullParser.getEventType();
+            Log.d("myWeather","parseXML");
+            while(evetType!=xmlPullParser.END_DOCUMENT){
+                switch (evetType){
+                    case XmlPullParser.START_TAG:
+                        if(xmlPullParser.getName().equals("city")){
+                            evetType = xmlPullParser.next();
+                            Log.d("myWeather","city:  "+xmlPullParser.getText());
+                        }else if(xmlPullParser.getName().equals("updatetime")){
+                            evetType = xmlPullParser.next();
+                            Log.d("myWeather","updatetime:  "+xmlPullParser.getText());
+                        }else if(xmlPullParser.getName().equals("shidu")){
+                            evetType = xmlPullParser.next();
+                            Log.d("myWeather","湿度:  "+xmlPullParser.getText());
+                        }else if(xmlPullParser.getName().equals("wendu")){
+                            evetType = xmlPullParser.next();
+                            Log.d("myWeather","温度:  "+xmlPullParser.getText());
+                        }else if(xmlPullParser.getName().equals("pm25")){
+                            evetType = xmlPullParser.next();
+                            Log.d("myWeather","pm2.5:  "+xmlPullParser.getText());
+                        }else if(xmlPullParser.getName().equals("quality")){
+                            evetType = xmlPullParser.next();
+                            Log.d("myWeather","空气质量:  "+xmlPullParser.getText());
+                        }else if(xmlPullParser.getName().equals("fengxiang")&&fengxiangCount==0){
+                            evetType = xmlPullParser.next();
+                            Log.d("myWeather","风向:  "+xmlPullParser.getText());
+                            fengxiangCount++;
+                        }else if(xmlPullParser.getName().equals("fengli")&&fengliCount==0){
+                            evetType = xmlPullParser.next();
+                            Log.d("myWeather","风力:  "+xmlPullParser.getText());
+                            fengliCount++;
+                        }else if(xmlPullParser.getName().equals("date")&&dateCount==0){
+                            evetType = xmlPullParser.next();
+                            Log.d("myWeather","date:  "+xmlPullParser.getText());
+                            dateCount++;
+                        }else if(xmlPullParser.getName().equals("high")&&highCount==0){
+                            evetType = xmlPullParser.next();
+                            Log.d("myWeather","high:  "+xmlPullParser.getText().substring(2));
+                            highCount++;
+                        }else if(xmlPullParser.getName().equals("low")&&lowCount==0){
+                            evetType = xmlPullParser.next();
+                            Log.d("myWeather","low:  "+xmlPullParser.getText().substring(2));
+                            lowCount++;
+                        }else if(xmlPullParser.getName().equals("type")&&typeCount==0){
+                            evetType = xmlPullParser.next();
+                            Log.d("myWeather","type:  "+xmlPullParser.getText());
+                            typeCount++;
+                        }
+                        break;
+                    default:
+                        break;
+                }
+                evetType = xmlPullParser.next();
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
     }
 }
