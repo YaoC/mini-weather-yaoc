@@ -31,8 +31,8 @@ public class MyApplication extends Application{
         Log.d(TAG,"MyApplication->onCreate");
         mApplication = this;
 
-//        mCityDB = openCityDB();
-//        initCityList();
+        mCityDB = openCityDB();
+        initCityList();
     }
 
     public static Application getInstance(){
@@ -43,12 +43,22 @@ public class MyApplication extends Application{
         String path = "/data"
                 + Environment.getDataDirectory().getAbsolutePath()
                 + File.separator + getPackageName()
-                + File.separator + "databases"
+                + File.separator + "databases1"
                 + File.separator
                 + CityDB.CITY_DB_NAME;
         File db = new File(path);
-        Log.d(TAG, path);
+        Log.d(TAG, "path: " + path);
         if (!db.exists()) {
+            String pathfolder = "/data"
+                    + Environment.getDataDirectory().getAbsolutePath()
+                    + File.separator + getPackageName()
+                    + File.separator + "databases1"
+                    + File.separator;
+            File dirFirstFolder = new File(pathfolder);
+            if (!dirFirstFolder.exists()) {
+                dirFirstFolder.mkdirs();
+                Log.d(TAG, "mkdirs");
+            }
             Log.i(TAG, "db is not exists");
             try {
                 InputStream is = getAssets().open("city.db");
@@ -56,7 +66,7 @@ public class MyApplication extends Application{
                 int len = -1;
                 byte[] buffer = new byte[1024];
                 while ((len = is.read(buffer)) != -1) {
-                    fos.write(buffer,0,len);
+                    fos.write(buffer, 0, len);
                     fos.flush();
                 }
                 fos.close();
@@ -66,15 +76,20 @@ public class MyApplication extends Application{
                 System.exit(0);
             }
         }
+        Log.d(TAG, "openCityDB path: "+path);
         return new CityDB(this, path);
     }
 
     private boolean prepareCityList() {
         mCityList = mCityDB.getAllCity();
+        int i = 0;
         for (City city : mCityList) {
+            i++;
             String cityName = city.getCity();
-            Log.d(TAG, cityName);
+            String cityCode = city.getNumber();
+            Log.d(TAG, cityCode+":"+cityName);
         }
+        Log.d(TAG, "i=" + i);
         return  true;
     }
 
