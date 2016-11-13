@@ -9,7 +9,10 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 import cn.edu.pku.cyao.bean.City;
 import cn.edu.pku.cyao.db.CityDB;
@@ -24,6 +27,9 @@ public class MyApplication extends Application{
 
     private CityDB mCityDB;
     private List<City> mCityList;
+    private String[] cityCode;
+    private String[] cityName;
+    private List<Map<String, Object>> listems;
 
     @Override
     public void onCreate(){
@@ -82,14 +88,21 @@ public class MyApplication extends Application{
 
     private boolean prepareCityList() {
         mCityList = mCityDB.getAllCity();
-        int i = 0;
+        ArrayList<String> cityCodeList = new ArrayList<String>();
+        ArrayList<String> cityNameList = new ArrayList<String>();
+        listems = new ArrayList<Map<String, Object>>();
         for (City city : mCityList) {
-            i++;
-            String cityName = city.getCity();
-            String cityCode = city.getNumber();
-            Log.d(TAG, cityCode+":"+cityName);
+            Map<String, Object> listem = new HashMap<String, Object>();
+            listem.put("city", city.getCity());
+            listem.put("province", city.getProvince());
+            listems.add(listem);
+            cityNameList.add(city.getCity());
+            cityCodeList.add(city.getNumber());
         }
-        Log.d(TAG, "i=" + i);
+        cityCode = new String[cityCodeList.size()];
+        cityCode = cityCodeList.toArray(cityCode);
+        cityName = new String[cityNameList.size()];
+        cityName = cityNameList.toArray(cityName);
         return  true;
     }
 
@@ -101,6 +114,17 @@ public class MyApplication extends Application{
                 prepareCityList();
             }
         }).start();
+    }
+
+    public String[] getCityCodeList(){
+        return cityCode;
+    }
+    public String[] getCityNameList(){
+        return cityName;
+    }
+
+    public List<Map<String,Object>> getCityDetailList(){
+        return listems;
     }
 
 }

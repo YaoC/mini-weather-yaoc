@@ -68,4 +68,16 @@ public class City {
     public String getAllFirstPY() {
         return allFirstPY;
     }
+
+    @Override
+    public String toString() {
+        return "City{" +
+                "province='" + province + '\'' +
+                ", city='" + city + '\'' +
+                ", number='" + number + '\'' +
+                ", firstPY='" + firstPY + '\'' +
+                ", allPY='" + allPY + '\'' +
+                ", allFirstPY='" + allFirstPY + '\'' +
+                '}';
+    }
 }
