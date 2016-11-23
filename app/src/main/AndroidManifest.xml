@@ -17,8 +17,9 @@
             </intent-filter>
         </activity>
 
-        <activity android:name=".SelectCity" />
-
+        <activity android:name=".SelectCity"
+            android:windowSoftInputMode="stateHidden" />
+        <service android:name=".UpdateWeatherService"/>
     </application>
 
 </manifest>
