@@ -3,6 +3,8 @@ package cn.edu.pku.cyao.util;
 
 
 
+import android.util.Log;
+
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserFactory;
 
@@ -14,11 +16,14 @@ import java.io.StringReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
 import cn.edu.pku.cyao.bean.TodayWeather;
+import cn.edu.pku.cyao.bean.WeekDayWeather;
 
 /**
  * Created by cyao on 16-11-13.
@@ -43,6 +48,60 @@ public class XmlUtil {
             responseStr = response.toString();
         }
         return responseStr;
+    }
+
+    public static ArrayList<WeekDayWeather> parseXmlByPullWeeks(String xmldata){
+        List<WeekDayWeather> weekDayWeathers = new ArrayList<>();
+        WeekDayWeather weekDayWeather = null;
+        try{
+            XmlPullParserFactory fac = XmlPullParserFactory.newInstance();
+            XmlPullParser xmlPullParser = fac.newPullParser();
+            xmlPullParser.setInput(new StringReader(xmldata));
+            int evetType = xmlPullParser.getEventType();
+            while (evetType != xmlPullParser.END_DOCUMENT) {
+                switch (evetType) {
+                    case XmlPullParser.START_TAG:
+                        if (xmlPullParser.getName().equals("weather")) {
+                            weekDayWeather = new WeekDayWeather();
+                        }
+                        if (weekDayWeather != null) {
+                            if (xmlPullParser.getName().equals("date")) {
+                                evetType = xmlPullParser.next();
+                                weekDayWeather.setWeek(xmlPullParser.getText());
+                            } else if (xmlPullParser.getName().equals("high")) {
+                                evetType = xmlPullParser.next();
+                                weekDayWeather.setHigh(xmlPullParser.getText().substring(3));
+                            } else if (xmlPullParser.getName().equals("low")) {
+                                evetType = xmlPullParser.next();
+                                weekDayWeather.setLow(xmlPullParser.getText().substring(3));
+                            } else if (xmlPullParser.getName().equals("type")) {
+                                evetType = xmlPullParser.next();
+                                weekDayWeather.setType(xmlPullParser.getText());
+                            } else if (xmlPullParser.getName().equals("fengli")) {
+                                evetType = xmlPullParser.next();
+                                String fengli = xmlPullParser.getText();
+                                if (fengli.equals("微风级")) {
+                                    fengli = "微风";
+                                }
+                                weekDayWeather.setWind(fengli);
+                            }
+                        }
+                        break;
+                    case XmlPullParser.END_TAG:
+                        if (xmlPullParser.getName().equals("weather")&&weekDayWeather!=null){
+                            Log.d("test", "parseXmlByPullWeeks: " + weekDayWeather);
+                            weekDayWeathers.add(weekDayWeather);
+                        }
+                        break;
+                    default:
+                        break;
+                }
+                evetType = xmlPullParser.next();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return (ArrayList<WeekDayWeather>) weekDayWeathers;
     }
 
     public static TodayWeather parseXmlByPull(String xmldata) {

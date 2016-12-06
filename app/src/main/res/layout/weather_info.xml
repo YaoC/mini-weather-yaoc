@@ -269,6 +269,44 @@
             </RelativeLayout>
         </RelativeLayout>
         <!--六日天气-->
+        <RelativeLayout
+            android:layout_height="wrap_content"
+            android:layout_width="match_parent"
+            android:paddingTop="20dp"
+            android:layout_gravity="center_horizontal"
+            android:gravity="center_horizontal">
+            <android.support.v4.view.ViewPager
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:id="@+id/weather_this_week"
+                android:layout_gravity="center_horizontal"
+                android:gravity="center_horizontal">
+
+            </android.support.v4.view.ViewPager>
+            <!--<include layout="@layout/weather_info_page_1"/>-->
+            <!--标记-->
+            <LinearLayout
+                android:id="@+id/indicator"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_alignParentBottom="true"
+                android:gravity="center_horizontal"
+                android:background="#ff000000">
+                <ImageView
+                    android:id="@+id/iv1"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:padding="5dp"
+                    android:src="@drawable/page_indicator_focused"/>
+                <ImageView
+                    android:id="@+id/iv2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:padding="5dp"
+                    android:src="@drawable/page_indicator_unfocused"/>
+            </LinearLayout>
+        </RelativeLayout>
         <!--广告等-->
     </LinearLayout>
 </RelativeLayout>
