@@ -87,6 +87,8 @@ public class TodayWeather {
     }
 
     public String getPm25() {
+        if(pm25==null)
+            return "999";
         return pm25;
     }
 

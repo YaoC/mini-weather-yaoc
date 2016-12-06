@@ -1,7 +1,10 @@
 package cn.edu.pku.cyao.miniweather;
 
 import android.app.Activity;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.res.Resources;
 import android.os.Bundle;
 import android.os.Handler;
@@ -36,7 +39,8 @@ import cn.edu.pku.cyao.util.XmlUtil;
 
 public class MainActivity extends Activity implements View.OnClickListener, ViewPager.OnPageChangeListener{
 
-    public static final int UPDATE_TODAY_WEATHER = 1;
+    private static final int UPDATE_TODAY_WEATHER = 1;
+
     private static final String TAG = "MiniWeather";
 
     private String currentCityCode;
@@ -69,18 +73,33 @@ public class MainActivity extends Activity implements View.OnClickListener, View
         public void handleMessage(Message msg) {
             switch (msg.what){
                 case UPDATE_TODAY_WEATHER:
-                    HashMap<String,Object> result = (HashMap<String,Object>)msg.obj;
-                    updateTodayWeather((TodayWeather) result.get("todayWeather"));
-                    ArrayList<WeekDayWeather> weekDayWeathers = (ArrayList<WeekDayWeather>) result.get("weekDayWeathers");
-                    updateWeatherWeeklyView(weekDayWeathers);
-                    updateProgress.setVisibility(View.INVISIBLE);
-                    mUpdateBtn.setVisibility(View.VISIBLE);
+                    updateWeather(msg.obj);
                     break;
                 default:
                     break;
             }
         }
     };
+
+    private IntentFilter filter = new IntentFilter("time_to_update_weather");
+    private BroadcastReceiver receiver = new BroadcastReceiver() {
+        public void onReceive(Context context, Intent intent) {
+            Log.d(TAG, "onReceive: 自动更新天气");
+            queryWeather();
+        }
+    };
+
+
+
+
+    private void updateWeather(Object p){
+        HashMap<String,Object> result = (HashMap<String,Object>)p;
+        updateTodayWeather((TodayWeather) result.get("todayWeather"));
+        ArrayList<WeekDayWeather> weekDayWeathers = (ArrayList<WeekDayWeather>) result.get("weekDayWeathers");
+        updateWeatherWeeklyView(weekDayWeathers);
+        updateProgress.setVisibility(View.INVISIBLE);
+        mUpdateBtn.setVisibility(View.VISIBLE);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -98,17 +117,27 @@ public class MainActivity extends Activity implements View.OnClickListener, View
         initView();
     }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        unregisterReceiver(receiver);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+    }
+
     private void checkCurrentCity(){
         if(currentCityCode==null){
             //GPS获取
             //如果GPS未获取到地理位置则显示北京
             currentCityCode = "101010100";
             currentCityName = "北京";
-            queryWeather();
-            //TODO 设置每小时自动更新天气
-
-
         }
+        queryWeather();
+        //TODO 设置每小时自动更新天气
+        startAutoUpdateWeatherService();
     }
 
     @Override
@@ -250,12 +279,22 @@ public class MainActivity extends Activity implements View.OnClickListener, View
 
     private void startAutoUpdateWeatherService(){
         Intent i = new Intent(getBaseContext(), UpdateWeatherService.class);
-        i.putExtra("cityCode", currentCityCode);
+        i.putExtra("update_interval",0);
         startService(i);
+        filter.addAction("time_to_update_weather");
+        registerReceiver(receiver,filter);
     }
 
-    private void changeAutoUpdateWeatherService(){
-
+    //修改自动更新天气的间隔，interval==0的话不自动更新天气
+    private void changeUpdateInterval(int interval){
+        Intent i = new Intent(getBaseContext(), UpdateWeatherService.class);
+        stopService(i);
+        if (interval > 0) {
+            i.putExtra("update_interval",interval);
+            startService(i);
+            filter.addAction("time_to_update_weather");
+            registerReceiver(receiver,filter);
+        }
     }
 
     private void initWeatherWeeklyView(){
@@ -273,11 +312,9 @@ public class MainActivity extends Activity implements View.OnClickListener, View
         windWeeksTv = new TextView[WEEK];
         weeksImg = new ImageView[WEEK];
         Resources res = getResources();
-//        View layout = getLayoutInflater().inflate(R.layout.weather_info_page_1, null);
         int idxView = 0;
         for(int i=0;i<WEEK;++i) {
             if(i==3){
-//                layout = getLayoutInflater().inflate(R.layout.weather_info_page_2, null);
                 idxView = 1;
             }
             int id = res.getIdentifier("day_" + i, "id", getPackageName());
