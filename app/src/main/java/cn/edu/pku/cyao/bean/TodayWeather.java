@@ -133,4 +133,9 @@ public class TodayWeather {
                 ", type='" + type + '\'' +
                 '}';
     }
+
+    public String getShareString(){
+        return city+"今日"+type+"("+low+"~"+high+")，当前气温"+wendu+"℃，湿度"+shidu+"，空气质量"
+                +quality+"，pm2.5 "+pm25+" ,风力"+fengli+"。——from yaoc's MiniWeather（"+date+" "+updatetime+"）";
+    }
 }

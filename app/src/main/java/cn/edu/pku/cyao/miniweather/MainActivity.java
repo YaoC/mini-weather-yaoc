@@ -1,18 +1,22 @@
 package cn.edu.pku.cyao.miniweather;
 
 import android.app.Activity;
-import android.app.Application;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.res.Resources;
+import android.graphics.Bitmap;
+import android.graphics.Rect;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
 import android.support.v4.view.ViewPager;
+import android.util.Base64;
 import android.util.Log;
+import android.view.Display;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.ImageView;
@@ -22,6 +26,10 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -34,6 +42,8 @@ import cn.edu.pku.cyao.bean.WeekDayWeather;
 import cn.edu.pku.cyao.util.Location;
 import cn.edu.pku.cyao.util.NetUtil;
 import cn.edu.pku.cyao.util.XmlUtil;
+import cn.sharesdk.framework.ShareSDK;
+import cn.sharesdk.onekeyshare.OnekeyShare;
 
 
 /**
@@ -52,11 +62,13 @@ public class MainActivity extends Activity implements View.OnClickListener, View
 
     private String currentCityCode;
     private String currentCityName;
+    private String shareInfo;
 
     private ImageView mUpdateBtn;
     private ProgressBar updateProgress;
     private ImageView mCitySelect;
     private ImageView mLocationBtn;
+    private ImageView mShareBtn;
 
     private TextView cityTv, timeTv, humidityTv, weekTv, pmDataTv,
             pmQualityTv, temperatureTv, climateTv, windTv, city_name_Tv, now_temperature_Tv;
@@ -110,8 +122,19 @@ public class MainActivity extends Activity implements View.OnClickListener, View
         updateTodayWeather((TodayWeather) result.get("todayWeather"));
         ArrayList<WeekDayWeather> weekDayWeathers = (ArrayList<WeekDayWeather>) result.get("weekDayWeathers");
         updateWeatherWeeklyView(weekDayWeathers);
+        final Bitmap shot = myShot(this);
         updateProgress.setVisibility(View.INVISIBLE);
         mUpdateBtn.setVisibility(View.VISIBLE);
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    saveToSD(shot,"mnt/sdcard/pictures/","shot.png");
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
     }
 
     @Override
@@ -129,6 +152,9 @@ public class MainActivity extends Activity implements View.OnClickListener, View
         Log.d("MyApp","MainActivity->onCreate");
         setWeatherImgMap();
         app = (MyApplication) getApplicationContext();
+        mShareBtn = (ImageView) findViewById(R.id.title_share);
+        mShareBtn.setOnClickListener(this);
+        ShareSDK.initSDK(this);
         initView();
     }
 
@@ -164,7 +190,6 @@ public class MainActivity extends Activity implements View.OnClickListener, View
             getCurrentLocation();
         }
         queryWeather();
-        //TODO 设置每小时自动更新天气
         startAutoUpdateWeatherService();
     }
 
@@ -179,14 +204,14 @@ public class MainActivity extends Activity implements View.OnClickListener, View
 
         }
         if (view.getId() == R.id.title_update_btn) {
-//            SharedPreferences sharedPreferences = getSharedPreferences("config", MODE_PRIVATE);
-//            String cityCode = sharedPreferences.getString("main_city_code", "101010100");
-
             queryWeather();
-
         }
         if (view.getId() == R.id.title_location) {
             getCurrentLocation();
+        }
+        if (view.getId() == R.id.title_share) {
+            Log.d(TAG, "onClick: "+shareInfo);
+            showShare();
         }
     }
 
@@ -253,6 +278,7 @@ public class MainActivity extends Activity implements View.OnClickListener, View
     更新今日天气
      */
     private void updateTodayWeather(TodayWeather todayWeather) {
+        shareInfo = todayWeather.getShareString();
         city_name_Tv.setText(todayWeather.getCity() + "天气");
         cityTv.setText(todayWeather.getCity());
         timeTv.setText(todayWeather.getUpdatetime() + "发布");
@@ -296,8 +322,7 @@ public class MainActivity extends Activity implements View.OnClickListener, View
 
             currentCityCode = data.getStringExtra("cityCode");
             queryWeather();
-
-            //TODO 重新设置每小时自动更新天气
+            startAutoUpdateWeatherService();
         }
     }
 
@@ -459,4 +484,116 @@ public class MainActivity extends Activity implements View.OnClickListener, View
         }).start();
     }
 
+    private void showShare() {
+        OnekeyShare oks = new OnekeyShare();
+        //关闭sso授权
+        oks.disableSSOWhenAuthorize();
+        // title标题，印象笔记、邮箱、信息、微信、人人网、QQ和QQ空间使用
+        oks.setTitle("标题");
+        // titleUrl是标题的网络链接，仅在Linked-in,QQ和QQ空间使用
+        oks.setTitleUrl("http://sharesdk.cn");
+        // text是分享文本，所有平台都需要这个字段
+        oks.setText(shareInfo);
+        oks.setImagePath("/mnt/sdcard/pictures/shot.png");
+        //分享网络图片，新浪微博分享网络图片需要通过审核后申请高级写入接口，否则请注释掉测试新浪微博
+//        oks.setImageUrl("http://f1.sharesdk.cn/imgs/2014/02/26/owWpLZo_638x960.jpg");
+        // imagePath是图片的本地路径，Linked-In以外的平台都支持此参数
+        //oks.setImagePath("/sdcard/test.jpg");//确保SDcard下面存在此张图片
+        // url仅在微信（包括好友和朋友圈）中使用
+//        oks.setImageUrl(shareImg);
+//        oks.setUrl("http://sharesdk.cn");
+        // comment是我对这条分享的评论，仅在人人网和QQ空间使用
+        oks.setComment("我是测试评论文本");
+        // site是分享此内容的网站名称，仅在QQ空间使用
+        oks.setSite("ShareSDK");
+        // siteUrl是分享此内容的网站地址，仅在QQ空间使用
+        oks.setSiteUrl("http://sharesdk.cn");
+
+        // 启动分享GUI
+        oks.show(this);
+    }
+
+    private Bitmap myShot(Activity activity) {
+        // 获取windows中最顶层的view
+        View view = activity.getWindow().getDecorView();
+        view.buildDrawingCache();
+        // 获取状态栏高度
+        Rect rect = new Rect();
+        view.getWindowVisibleDisplayFrame(rect);
+        int statusBarHeights = rect.top;
+        Display display = activity.getWindowManager().getDefaultDisplay();
+        // 获取屏幕宽和高
+        int widths = display.getWidth();
+        int heights = display.getHeight();
+        // 允许当前窗口保存缓存信息
+        view.setDrawingCacheEnabled(true);
+        // 去掉状态栏
+        Bitmap bmp = Bitmap.createBitmap(view.getDrawingCache(), 0,
+                statusBarHeights, widths, heights - statusBarHeights);
+        // 销毁缓存信息
+        view.destroyDrawingCache();
+        return bmp;
+    }
+
+    private String bitmapToBase64(Bitmap bitmap){
+        String result="";
+        ByteArrayOutputStream bos=null;
+        try {
+            if(null!=bitmap){
+                bos=new ByteArrayOutputStream();
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 100, bos);//将bitmap放入字节数组流中
+
+                bos.flush();//将bos流缓存在内存中的数据全部输出，清空缓存
+                bos.close();
+
+                byte []bitmapByte=bos.toByteArray();
+                result= Base64.encodeToString(bitmapByte, Base64.DEFAULT);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }finally{
+            if(null!=null){
+                try {
+                    bos.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return result;
+    }
+
+    private void saveToSD(Bitmap bmp, String dirName,String fileName) throws IOException {
+        // 判断sd卡是否存在
+        if (Environment.getExternalStorageState().equals(
+                Environment.MEDIA_MOUNTED)) {
+            File dir = new File(dirName);
+            // 判断文件夹是否存在，不存在则创建
+            if(!dir.exists()){
+                dir.mkdir();
+            }
+
+            File file = new File(dirName + fileName);
+            // 判断文件是否存在，不存在则创建
+            if (!file.exists()) {
+                file.createNewFile();
+            }
+
+            FileOutputStream fos = null;
+            try {
+                fos = new FileOutputStream(file);
+                if (fos != null) {
+                    // 第一参数是图片格式，第二个是图片质量，第三个是输出流
+                    bmp.compress(Bitmap.CompressFormat.PNG, 100, fos);
+                    // 用完关闭
+                    fos.flush();
+                    fos.close();
+                }
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
 }
