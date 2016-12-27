@@ -1,10 +1,12 @@
 package cn.edu.pku.cyao.miniweather;
 
 import android.app.Activity;
+import android.app.Application;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.content.res.Resources;
 import android.os.Bundle;
 import android.os.Handler;
@@ -20,15 +22,19 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import cn.edu.pku.cyao.app.MyApplication;
 import cn.edu.pku.cyao.bean.TodayWeather;
 import cn.edu.pku.cyao.bean.WeekDayWeather;
+import cn.edu.pku.cyao.util.Location;
 import cn.edu.pku.cyao.util.NetUtil;
 import cn.edu.pku.cyao.util.XmlUtil;
+
 
 /**
  * Created by cyao on 16-9-21.
@@ -40,6 +46,7 @@ import cn.edu.pku.cyao.util.XmlUtil;
 public class MainActivity extends Activity implements View.OnClickListener, ViewPager.OnPageChangeListener{
 
     private static final int UPDATE_TODAY_WEATHER = 1;
+    private static final int GET_LOCATION = 2;
 
     private static final String TAG = "MiniWeather";
 
@@ -49,6 +56,7 @@ public class MainActivity extends Activity implements View.OnClickListener, View
     private ImageView mUpdateBtn;
     private ProgressBar updateProgress;
     private ImageView mCitySelect;
+    private ImageView mLocationBtn;
 
     private TextView cityTv, timeTv, humidityTv, weekTv, pmDataTv,
             pmQualityTv, temperatureTv, climateTv, windTv, city_name_Tv, now_temperature_Tv;
@@ -69,11 +77,16 @@ public class MainActivity extends Activity implements View.OnClickListener, View
     private TextView[] weeksTv, temperatureWeeksTv, climateWeeksTv, windWeeksTv;
     private ImageView[] weeksImg;
 
+    private MyApplication app;
+
     private Handler mhandler = new Handler(){
         public void handleMessage(Message msg) {
             switch (msg.what){
                 case UPDATE_TODAY_WEATHER:
                     updateWeather(msg.obj);
+                    break;
+                case GET_LOCATION:
+                    queryWeather();
                     break;
                 default:
                     break;
@@ -111,9 +124,11 @@ public class MainActivity extends Activity implements View.OnClickListener, View
         mUpdateBtn.setOnClickListener(this);
         mCitySelect = (ImageView) findViewById(R.id.title_city_manager);
         mCitySelect.setOnClickListener(this);
-
+        mLocationBtn = (ImageView) findViewById(R.id.title_location);
+        mLocationBtn.setOnClickListener(this);
         Log.d("MyApp","MainActivity->onCreate");
         setWeatherImgMap();
+        app = (MyApplication) getApplicationContext();
         initView();
     }
 
@@ -128,12 +143,25 @@ public class MainActivity extends Activity implements View.OnClickListener, View
         super.onPause();
     }
 
+    @Override
+    protected void onStop() {
+        super.onStop();
+        SharedPreferences sharedPreferences = getSharedPreferences("config", MODE_PRIVATE);
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putString("cityCode", currentCityCode);
+        editor.putString("cityName", currentCityName);
+        editor.commit();
+    }
+
     private void checkCurrentCity(){
+        SharedPreferences sharedPreferences = getSharedPreferences("config", MODE_PRIVATE);
+        currentCityCode = sharedPreferences.getString("cityCode",null);
+        currentCityName = sharedPreferences.getString("cityName", "北京");
+        city_name_Tv.setText(currentCityName+"天气");
+        cityTv.setText(currentCityName);
         if(currentCityCode==null){
-            //GPS获取
-            //如果GPS未获取到地理位置则显示北京
-            currentCityCode = "101010100";
-            currentCityName = "北京";
+            //定位
+            getCurrentLocation();
         }
         queryWeather();
         //TODO 设置每小时自动更新天气
@@ -156,6 +184,9 @@ public class MainActivity extends Activity implements View.OnClickListener, View
 
             queryWeather();
 
+        }
+        if (view.getId() == R.id.title_location) {
+            getCurrentLocation();
         }
     }
 
@@ -226,7 +257,11 @@ public class MainActivity extends Activity implements View.OnClickListener, View
         cityTv.setText(todayWeather.getCity());
         timeTv.setText(todayWeather.getUpdatetime() + "发布");
         humidityTv.setText("湿度：" + todayWeather.getShidu());
-        pmDataTv.setText(todayWeather.getPm25());
+        if(todayWeather.getPm25().equals("999"))
+            pmDataTv.setText("无");
+        else{
+            pmDataTv.setText(todayWeather.getPm25());
+        }
         pmQualityTv.setText(todayWeather.getQuality());
         weekTv.setText(todayWeather.getDate());
         temperatureTv.setText(todayWeather.getHigh() + "~" + todayWeather.getLow());
@@ -246,7 +281,7 @@ public class MainActivity extends Activity implements View.OnClickListener, View
         else if(pm25<301)
             pmImgId = R.drawable.biz_plugin_weather_201_300;
         else
-            pmImgId = R.drawable.biz_plugin_weather_greater_300;
+            pmImgId = R.drawable.biz_plugin_weather_0_50;
         pmImg.setImageResource(pmImgId);
         int typeImgId= R.drawable.biz_plugin_weather_qing;
         if(weatherImgMap.containsKey(todayWeather.getType()))
@@ -393,4 +428,35 @@ public class MainActivity extends Activity implements View.OnClickListener, View
         weatherImgMap.put("阵雪",R.drawable.biz_plugin_weather_zhenxue);
         weatherImgMap.put("中雪",R.drawable.biz_plugin_weather_zhongxue);
     }
+
+    private void getCurrentLocation() {
+        Toast.makeText(MainActivity.this,"定位中...",Toast.LENGTH_SHORT).show();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    String city = Location.getCity();
+                    if (city.equals("no result")) {
+                        Log.d(TAG, "run: 定位失败，未得到结果");
+                    }else{
+                        String[] nameList = app.getCityNameList();
+                        String[] codeList = app.getCityCodeList();
+                        int idx = 0;
+                        for (;idx<nameList.length;++idx) {
+                            if(nameList[idx].equals(city)) break;
+                        }
+                        currentCityName = nameList[idx];
+                        currentCityCode = codeList[idx];
+                        Log.d(TAG, "run: "+currentCityName+" "+currentCityCode);
+                        Message msg = new Message();
+                        msg.what = GET_LOCATION;
+                        mhandler.sendMessage(msg);
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
+    }
+
 }
